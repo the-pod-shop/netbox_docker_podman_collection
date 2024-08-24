@@ -1,0 +1,33 @@
+namespace: "ji_podhead"
+name: "netbox_docker_podman"
+description:  "netbox for docker and podman"
+version: "0.0.0"
+readme: "README.md"
+authors:
+    - "ji-podhead (https://https://www.github.com/ji-podhead)"
+dependencies:
+    community.general: ">=0.0.0"
+license:
+    - "MIT"
+tags:
+    - netbox
+    - network_automation
+    - podman
+    - container
+    - bridge_generation
+    - podman_compose
+    - docker_compose
+    - ansible_ip_allocation_via_compose
+    - userbased_compose_overrides
+    - docker
+    - automatic_superuser
+    - network_planing
+    - redis
+    - postgresql
+    - network_resilience
+    - ipam
+
+repository: "https://www.github.com/the-pod-shop/netbox_docker_podman_collection"
+
+
+

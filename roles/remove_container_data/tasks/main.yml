@@ -1,0 +1,7 @@
+
+- name: remove all old stuff
+  shell: | 
+          cd /tmp/netbox-docker
+          sudo /home/worker/.local/bin/podman-compose down 
+          sudo podman volume rm -f netbox-docker_netbox-postgres-data netbox-docker_netbox-redis-data netbox-docker_netbox-redis-cache-data netbox-docker_netbox-media-files netbox-docker_netbox-reports-files netbox-docker_netbox-scripts-files
+

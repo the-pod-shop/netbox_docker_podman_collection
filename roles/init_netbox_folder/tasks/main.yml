@@ -1,0 +1,273 @@
+# - name: get git
+#   ansible.builtin.dnf:
+#     name:
+#       - git
+# - name: get pc
+#   ansible.builtin.pip:
+#     name:
+#       - podman-compose 
+# - name: remove old folder
+#   ansible.builtin.shell: rm -rf /tmp/netbox-docker
+  
+# - name: Clone NetBox Docker repository
+#   git:
+#     repo: 'https://github.com/netbox-community/netbox-docker.git'
+#     dest: /tmp/netbox-docker
+#     version: release
+
+
+- name: add podman support
+  copy:
+    dest: "/tmp/netbox-docker/docker-compose.yml"
+    content: |
+      services:
+        netbox: &netbox
+          image: docker.io/netboxcommunity/netbox:${VERSION-v4.0-2.9.1}
+          depends_on:
+            - postgres
+            - redis
+            - redis-cache
+          {% if netbox_ip %}ip: {{netbox_ip}}{% endif %}
+          
+          env_file: env/netbox.env
+          user: 'unit:root'
+          healthcheck:
+            start_period: 60s
+            timeout: 3s
+            interval: 15s
+            test: "curl -f http://localhost:8080/login/ || exit 1"
+          volumes:
+            - ./configuration:/etc/netbox/config:z,ro
+            - netbox-media-files:/opt/netbox/netbox/media:rw
+            - netbox-reports-files:/opt/netbox/netbox/reports:rw
+            - netbox-scripts-files:/opt/netbox/netbox/scripts:rw
+        netbox-worker:
+          <<: *netbox
+          {% if netbox_worker_ip %}ip: {{netbox_worker_ip}}{% endif %}
+          
+          depends_on:
+            netbox:
+              condition: service_healthy
+          command:
+            - /opt/netbox/venv/bin/python
+            - /opt/netbox/netbox/manage.py
+            - rqworker
+          healthcheck:
+            start_period: 20s
+            timeout: 3s
+            interval: 15s
+            test: "ps -aux | grep -v grep | grep -q rqworker || exit 1"
+        netbox-housekeeping:
+          <<: *netbox
+          {% if netbox_housekeeping_ip %}ip: {{netbox_housekeeping_ip}}{% endif %}
+          
+          depends_on:
+            netbox:
+              condition: service_healthy
+          command:
+            - /opt/netbox/housekeeping.sh
+          healthcheck:
+            start_period: 20s
+            timeout: 3s
+            interval: 15s
+            test: "ps -aux | grep -v grep | grep -q housekeeping || exit 1"
+        
+        postgres:
+          {% if postgres_ip %}ip: {{postgres_ip}}{% endif %}
+          
+          image: docker.io/postgres:16-alpine
+          env_file: env/postgres.env
+          volumes:
+            - netbox-postgres-data:/var/lib/postgresql/data
+        
+        redis:
+          image: docker.io/redis:7-alpine10.89.0.53
+          {% if redis_ip %}ip: {{redis_ip}}{% endif %}
+          
+          command:
+            - sh
+            - -c # this is to evaluate the $REDIS_PASSWORD from the env
+            - redis-server --appendonly yes --requirepass $$REDIS_PASSWORD ## $$ because of docker-compose
+          env_file: env/redis.env
+          volumes:
+            - netbox-redis-data:/data
+        
+        redis-cache:
+          image: docker.io/redis:7-alpine
+          {% if redis_cache_ip %}ip: {{redis_cache_ip}}{% endif %}
+
+          command:
+            - sh
+            - -c # this is to evaluate the $REDIS_PASSWORD from the env
+            - redis-server --requirepass $$REDIS_PASSWORD ## $$ because of docker-compose
+          env_file: env/redis-cache.env
+          volumes:
+            - netbox-redis-cache-data:/data
+
+      volumes:
+        netbox-media-files:
+          driver: local
+        netbox-postgres-data:
+          driver: local
+        netbox-redis-cache-data:
+          driver: local
+        netbox-redis-data:
+          driver: local
+        netbox-reports-files:
+          driver: local
+        netbox-scripts-files:
+          driver: local
+      {% if bridge_name %} 
+      networks:
+      {{bridge_name}}:
+          ipam:
+            driver: bridge
+            config:
+              - subnet: {{subnet}}
+                ip_range: {{range}}
+                gateway: {{gateway}}
+      {% endif %}
+
+
+- name: Create docker-compose.override.yml
+  copy:
+    content: |
+      version: "4.0-2.9.1"
+    dest: "/tmp/netbox-docker/docker-compose.override.yml"
+
+- name: up 
+  ignore_errors:
+  ansible.builtin.shell: |
+          cd /tmp/netbox-docker
+          sudo /home/worker/.local/bin/podman-compose pull
+          /home/worker/.local/bin/podman-compose --file /tmp/netbox-docker/docker-compose.yml --file /tmp/netbox-docker/docker-compose.override.yml up -d
+
+- name: Führe Commands nach festgelegten Zeiten aus
+  block:
+    - name: Starte Prozesse asynchron
+      containers.podman.podman_container_exec: 
+        name: netbox-docker_netbox_1
+        user: root
+        argv:
+          - /bin/sh
+          - -c
+          - |
+            process=$(ps -aux | grep manage.py | grep python3 | grep -v grep -q && echo "found process")
+            echo $process        
+            if([ -n "$process" ]); then
+            source /opt/netbox/venv/bin/activate;
+            DJANGO_SUPERUSER_PASSWORD={{password}} && python3 /opt/netbox/netbox/manage.py createsuperuser --no-input --username {{user}}  --email {{email}}
+            fi
+      register: result
+      until: result.stdout == "\n" 
+      retries: 30
+      delay: 2
+
+
+
+# - name: wait for db and create superuser
+#   ignore_errors: true
+#   containers.podman.podman_container_exec:
+#     name: netbox-docker_netbox_1 
+#     user: root
+#     argv:
+#       - /bin/sh
+#         - -c
+#         - |
+#           sleep 1
+#           while true; do
+#             process=$(ps -aux | grep manage.py | grep python3 | grep -v grep -q && echo "found process")
+#             if [ "$process" != "" ]; then
+#                 sleep 1
+#             else
+#                 source /opt/netbox/venv/bin/activate;
+#                 source /opt/netbox/venv/bin/activate;
+#                 DJANGO_SUPERUSER_PASSWORD='{{password}}' && python3 /opt/netbox/netbox/manage.py createsuperuser --no-input --username '{{user}}'  --email '{{email}}';
+#                 break
+#             fi
+#           done 
+          
+# - name: add superuser
+#   ansible.builtin.command: sudo podman exec -it --user root netbox-docker_netbox_1 /bin/bash -c "source /opt/netbox/venv/bin/activate; DJANGO_SUPERUSER_PASSWORD='{{password}}'&& python3 /opt/netbox/netbox/manage.py createsuperuser --no-input --username '{{user}}'  --email '{{email}}'"
+
+
+
+#sudo podman exec -it --user root netbox-docker_netbox_1 /bin/bash -c "source /opt/netbox/venv/bin/activate; DJANGO_SUPERUSER_PASSWORD='test'&& python3 /opt/netbox/netbox/manage.py createsuperuser --no-input --username 'user'  --email 'mail@mail.de'"  
+# - name: Create pass
+#   ansible.builtin.command:    sudo podman exec -it --user root netbox-docker_netbox_1 /bin/bash -c "source /opt/netbox/venv/bin/activate; DJANGO_SUPERUSER_PASSWORD='test'"  
+# - name: migrate
+#   ansible.builtin.command:    sudo podman exec -it --user root netbox-docker_netbox_1 /bin/bash -c " python3 /opt/netbox/netbox/manage.py migrate"  
+
+# - name: createsuperuser
+#   ignore_errors: true
+#   containers.podman.podman_container_exec:
+#     name: netbox-docker_netbox_1 
+#     user: root
+#     argv:
+#         - /bin/sh
+#         - -c
+#         - |
+#             
+
+
+  # register: db_wait_result
+  # until: db_wait_result is succeeded
+  # retries: 1
+  # delay: 10
+
+# - name: createsuperuser2
+#   ignore_errors: true
+#   containers.podman.podman_container_exec:
+    
+#         - /bin/sh
+#         - -c
+#         - |
+#             sudo podman exec -it --user root netbox-docker_netbox_1 /bin/bash -c "source /opt/netbox/venv/bin/activate; DJANGO_SUPERUSER_PASSWORD='test'&& python3 /opt/netbox/netbox/manage.py createsuperuser --no-input --username 'user'  --email 'mail@mail.de'"
+
+
+
+# - name: start
+#   ignore_errors: true
+#   ansible.builtin.command: sudo podman start netbox-docker_netbox_1 
+
+#  sudo podman exec -it --user root netbox-docker_netbox_1 /bin/bash -c"python3 /opt/netbox/netbox/manage.py createsuperuser --no-input --username 'user'  --email 'mail@mail.de'"                    
+    
+
+# - name: Install pexpect
+#   pip:
+#     name: pexpect
+#     state: present
+# - name: Pull images
+#   shell: cd /tmp/netbox-docker && /home/worker/.local/bin/podman-compose pull
+
+
+         # podman start netbox-docker_netbox_1
+# - name: Create superuser
+#   shell: |
+#         DJANGO_SUPERUSER_PASSWORD=test python3 /opt/netbox/netbox/manage.py createsuperuser --no-input --username test --email test@test.de"
+#   args:
+#     chdir: /tmp/netbox-docker
+#   vars:
+#     ansible_python_interpreter: /usr/bin/python
+
+
+# - name: Create superuser
+#   shell: | 
+#           sudo podman exec netbox-docker_netbox_1 /opt/netbox/venv/bin/activate DJANGO_SUPERUSER_PASSWORD=test 
+#           sudo podman exec netbox-docker_netbox_1 /opt/netbox/netbox/manage.py createsuperuser --no-input --username test --email test@test.de"
+#   args:
+#     stdin: "test\ntest@test.com\ntest\ntest"       
+# - name: Create superuser
+#   expect:
+#     ansible.builtin.shell: "sudo podman exec netbox-docker_netbox_1 /opt/netbox/netbox/manage.py createsuperuser"
+#     responses:
+#       "Username (leave blank to use 'root'): ": "test"
+#       "Email address: ": "test@test.com"
+#       "Password: ": "test"
+#       "Password (again): ": "test"
+#   #podman exec netbox /opt/netbox/netbox/manage.py createsuperuser
+#   args:
+#     chdir: /tmp/netbox-docker
+#   vars:
+#     ansible_python_interpreter: /usr/bin/python
+#     use_tty: True
