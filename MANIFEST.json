@@ -1,8 +1,8 @@
 {
  "collection_info": {
   "namespace": "ji_podhead",
-  "name": "netbox_podman",
-  "version": "0.0.6",
+  "name": "netbox_docker_podman",
+  "version": "1.0.1",
   "authors": [
    "ji-podhead (https://https://www.github.com/ji-podhead)"
   ],
@@ -11,9 +11,21 @@
    "netbox",
    "network_automation",
    "podman",
-   "imap"
+   "container",
+   "bridge_generation",
+   "podman_compose",
+   "docker_compose",
+   "ansible_ip_allocation_via_compose",
+   "userbased_compose_overrides",
+   "docker",
+   "automatic_superuser",
+   "network_planing",
+   "redis",
+   "postgresql",
+   "network_resilience",
+   "ipam"
   ],
-  "description": "netbox install using podman",
+  "description": "netbox for docker and podman",
   "license": [
    "MIT"
   ],
@@ -21,7 +33,7 @@
   "dependencies": {
    "community.general": ">=0.0.0"
   },
-  "repository": "https://www.github.com/the-pod-shop/netbox_podman",
+  "repository": "https://www.github.com/the-pod-shop/netbox_docker_podman_collection",
   "documentation": null,
   "homepage": null,
   "issues": null
@@ -30,7 +42,7 @@
   "name": "FILES.json",
   "ftype": "file",
   "chksum_type": "sha256",
-  "chksum_sha256": "8191a0726334f6f07ac1f67b6d620d976d1a3a0c23ab3a730303a1e68686295f",
+  "chksum_sha256": "4a38f108bd4dde982d31263025b974510ce9d4f9f510ba53049250989fd9efaa",
   "format": 1
  },
  "format": 1

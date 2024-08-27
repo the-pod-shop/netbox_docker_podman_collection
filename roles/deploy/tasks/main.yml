@@ -118,7 +118,7 @@
     dest: "/tmp/netbox-docker/docker-compose.override.yml"
     content: |
       version: {{ version }}
-      {{overrides}}
+      {{overrides | to_yaml | indent(8)}}
       networks: 
 - name: override networks
   loop: "{{networks}}"
@@ -126,19 +126,13 @@
     loop_var: network
   ansible.builtin.shell: | 
     cat<<'EOF'>>/tmp/netbox-docker/docker-compose.override.yml
-        {{ network.name }}:        
+        {{ network.name }}_:        
           ipam:
               driver: bridge
               config:
                   subnet: {{ network.subnet }}
                   ip_range: {{ network.range }}
                   gateway: {{ network.gateway }}
-    EOF
-- name: add default net
-  ansible.builtin.shell: |
-    cat<<'EOF'>>/tmp/netbox-docker/docker-compose.override.yml
-          default:
-            driver: bridge
     EOF
 
 
@@ -148,7 +142,7 @@
   ansible.builtin.shell: |
           cd /tmp/netbox-docker
           sudo /home/worker/.local/bin/podman-compose pull
-          /home/worker/.local/bin/podman-compose --file /tmp/netbox-docker/docker-compose.yml --file /tmp/netbox-docker/docker-compose.override.yml up -d
+          /home/worker/.local/bin/podman-compose --file /tmp/netbox-docker/docker-compose.yml
 
 - name: Führe Commands nach festgelegten Zeiten aus
   block:
