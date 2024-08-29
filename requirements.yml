@@ -4,3 +4,5 @@
 collections:
   - community.general
   - containers.podman
+  - containers.podman.podman_network
+  - community.docker
