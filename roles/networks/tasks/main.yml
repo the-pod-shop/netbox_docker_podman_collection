@@ -9,4 +9,17 @@
     ip_range: "{{network.range}}"
     subnet: "{{network.subnet}}"
     gateway: "{{network.gateway}}"
+  when: platform=="podman" 
 
+- name: Create a network with custom IPAM config
+  loop: "{{networks}}"
+  loop_control:
+    loop_var: network
+
+  community.docker.docker_network:
+    name: network_three
+    ipam_config:
+      - subnet: "{{network.subnet}}"
+        gateway: "{{network.gateway}}"
+        iprange: "{{network.range}}"
+  when: platform=="docker" 

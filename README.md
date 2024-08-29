@@ -33,13 +33,14 @@ Netbox Docker Podman automatically installs Netbox-Docker for you, creates a sup
 - you can add additionally overrides, but be aware of the formation and indent
 
 ```yaml 
-  tasks:
-      - name: setup netbox
+  t- name: setup netbox
       vars:
 #-----------------> REQUIRED <-----------------
           version: "4.0-2.9.1"
+          cluster_index: 1
           platform: "podman" 
-          allow_default_network: "yes"
+          compose_path: /home/worker/.local/bin/podman-compose
+          allow_default_network: "yes" # not used yet, planned for adding default network without specifying ips manually
 #----------------->  OPTIONAL <----------------- NOT YET! is on todolist
         # -------->   USER    <----------
           user: "admin"
@@ -96,8 +97,6 @@ Netbox Docker Podman automatically installs Netbox-Docker for you, creates a sup
               netbox:
                 ports: 
                   - 8000:8080
-#----------------->  DEPLOYMENT <-----------------
-      block:
 ```
 
 ### install - Fire The Collection!

@@ -4,5 +4,5 @@
   ignore_errors:
   ansible.builtin.shell: |
           cd /tmp/netbox-docker
-          /home/worker/.local/bin/podman-compose up -d --force-recreate 
+          {{compose_path}} up -d --force-recreate 
           

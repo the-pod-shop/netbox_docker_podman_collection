@@ -1,28 +1,51 @@
+- name: Podman create superuser
+  vars:
+    script: |
+            process=$(ps -aux | grep manage.py | grep -v grep)
+            if [ -z "$process" ]; then
+            echo finished
+            source  /opt/netbox/venv/bin/activate
+            DJANGO_SUPERUSER_PASSWORD={{password}} 
+            python3 /opt/netbox/netbox/manage.py createsuperuser --no-input --username {{user}} --email {{email}}
+            python3 /opt/netbox/netbox/manage.py shell <<EOF
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            user = User.objects.get(username="{{user}}")
+            user.set_password("{{password}}")
+            user.save()
+            EOF
+            fi
+            echo $process
+  block:
+    - name: Debug
+      debug:
+        var: script
 
-- name: wait till integration has finished
-  containers.podman.podman_container_exec: 
-    name: netbox-docker_netbox_1
-    user: root
-    argv:
-      - /bin/sh
-      - -c
-      - |
-        process=$(ps -aux | grep manage.py | grep -v grep )
-        if [ -z "$process" ]; then
-        echo finished
-        source /opt/netbox/venv/bin/activate;
-        DJANGO_SUPERUSER_PASSWORD={{password}} && python3 /opt/netbox/netbox/manage.py createsuperuser --no-input --username {{user}} --email {{email}}; 
-        python3 /opt/netbox/netbox/manage.py shell <<EOF
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
-        user = User.objects.get(username="{{user}}")
-        user.set_password("{{password}}")
-        user.save()
-        EOF
-        
-        fi
-        echo $process 
-  register: result
-  until: result.stdout_lines[0] == "finished"
-  retries: 30
-  delay: 2
+    - name: Execute script in container
+      containers.podman.podman_container_exec:
+        name: netbox-docker_netbox_{{cluster_index}}
+        user: root
+        argv:
+          - /bin/sh
+          - -c
+          - "{{ script }}"
+      when: platform == "podman"
+      register: result
+      until: result.stdout_lines[0] == "finished"
+      retries: 30
+      delay: 2
+
+
+    - name: docker create superuser
+      community.docker.docker_container_exec:
+        container: netbox-docker_netbox_{{cluster_index}}
+        user: root
+        command:           
+          - /bin/sh
+          - -c
+          - "{{ script }}"
+      when: platform != "podman"
+      register: result
+      until: result.stdout_lines[0] == "finished"
+      retries: 30
+      delay: 2
