@@ -1,229 +1,192 @@
-# lil_bind Ansible Galaxy Collection 
+# Netbox Docker Podman Ansible Collection
   
 
 ---
-lil_bind installs  Bind9 podman container and configures a ***static DNS*** for you
+Netbox Docker Podman automatically installs Netbox-Docker for you, creates a superuser and Token for direct usage via ansible.
 
 ---
-- one domain and ip per zone
-- subdomains can be used, or just left blank
-  
-i dont need a dhcp for my iac stuff, but still need a dns, so it was not intendet to make use of dynamic updates since all my containers and vms have a static ip because of the nic's (bridges/nats) anyway, so i decided just to use a tailscale router and instead of dhcp ill use a little netkwork manager that gives ip by the given zone. So i just have a preset file that contains all my zones and subnets and the networkmanager will cycle ips in the given subnet and zone.
+- direct ansible usage! no manual exec needed!
+- automatic superuser creation
+- automatic usertoken creation
+- ip assignment
+- multiple networks (can vary per container)
+- waits until database migration has finished before config
 
-## Install
-```bash
-$ ansible-galaxy collection install ji_podhead.lil_bind
-```
----
 
 ## Usage
-- import collection and use root
-      
-    ```yaml
-    
-    - hosts: <your_host>
-      gather_facts: no
-      become: true
-      become_method: sudo
-      become_user: root
-      collections:
-        - ji_podhead.lil_bind 
-    ```
-    
-- put all variables in a block because some are needed  for multiple roles and we dont like redundancy
-  
-    ```yaml
-  tasks:
-    - name: install podman
-      ansible.builtin.yum:
-        name:
-        - podman
-        state: latest
-    - name: lil_bind
-      vars:
-          container_name: "dns"
-          container_ip: "192.168.22.2"        
-          dns_admin: "admin"
-          dns_domain: "dns.com"
-          bridge_name: "my_bridge"
-          bridge_ip_range: "192.168.22.128/25"
-          bridge_subnet: "192.168.22.0/24"
-          bridge_gateway: "192.168.22.1"
-          domains: [
-                      {
-                        domain: "pod.com", ip: "192.168.3.0",
-                        sub_domains: [{sub_domain: "tele", ip: 2}]
-                      },
-                      {
-                        domain: "test.com", ip: "192.168.2.120",
-                        sub_domains: [{sub_domain: "test", ip: "121"}]
-                      }
-                    ]        
-          forwarders: [100.100.100.100]
-          subnets: [192.168.0.0/16,100.0.0.0/8]
-          allow_queries: ["localhost","192.168.0.0/16","100.0.0.0/8"]
-      
-    ```
-    
-- fire the collection
-    ```yaml      
-      block:
-      - name: create bridge
-        import_role:
-          name: ji_podhead.lil_bind.create_bridge
 
-      - name: install bind9
-        import_role: 
-          name: ji_podhead.lil_bind.install
+### use sudo and import the collection
+```yaml 
+- hosts: dcworkshop1
+  gather_facts: no
+  become: true
+  become_method: sudo
+  become_user: root
+  collections:
 
-      - name: config
-        import_role: 
-          name: ji_podhead.lil_bind.config
-
-      - name: set_zones
-        import_role: 
-          name: ji_podhead.lil_bind.set_zones
-      
-      - name: update & restart bind9
-        import_role:
-          name: ji_podhead.lil_bind.update
-    ```
-    
-    --- 
-
-## output
-```bash
-######################################################
-#           /etc/bind/named.conf.local
-######################################################
-//
-// Do any local configuration here
-//
-
-// Consider adding the 1918 zones here, if they are not used in your
-// organization
-//include "/etc/bind/zones.rfc1918";
-
-zone "pod.com" IN {  
-      type master;     
-      file "/etc/bind/zones/pod.com";    
-      allow-query { any; };   
-      allow-update { any; };  
-};      
-zone "3.168.192.in-addr.arpa" IN {       
-      type master;     
-      file "/etc/bind/zones/pod.com.rev";     
-      allow-query { any; };   
-      allow-update { any; };  
-};      
-zone "test.com" IN {  
-      type master;     
-      file "/etc/bind/zones/test.com";    
-      allow-query { any; };   
-      allow-update { any; };  
-};      
-zone "2.168.192.in-addr.arpa" IN {       
-      type master;     
-      file "/etc/bind/zones/test.com.rev";     
-      allow-query { any; };   
-      allow-update { any; };  
-};
-
-######################################################
-#           /etc/bind/named.conf.options
-######################################################
-acl local-lan { 
-    localhost;
-    192.168.0.0/16;
-    100.0.0.0/8;
-    };
-options {
-    directory "/var/cache/bind";
-    forwarders {
-      100.100.100.100;
-          };
-    allow-query { 
-    localhost;
-    192.168.0.0/16;
-    100.0.0.0/8;
-        };
-    dnssec-validation auto;
-    auth-nxdomain no;    // conform to RFC1035
-    listen-on-v6 { any; };
-    recursion no;  // we set that to no to avoid unnecessary traffic
-    querylog yes; // Enable for debugging
-    version "not available"; // Disable for security
-};
- 
-######################################################
-#             /etc/bind/zones/pod.com
-######################################################
-;
-; BIND data file for local loopback interface
-;
-$TTL    604800
-@       IN      SOA     dns.com. admin. ( 
-                                        2    
-                                        604800     
-                                        86400   
-                                        2419200    
-                                        604800 )      
-;
-@       IN      NS      dns.com.
-pod.com. IN  A  192.168.3.0
-tele.pod.com. IN  A  192.168.3.2
-
-######################################################
-#           /etc/bind/zones/pod.com.rev
-######################################################
-;
-; BIND reverse data file for local loopback interface
-;
-$TTL    604800
-@       IN      SOA     dns.com. admin. ( 
-                                        2    
-                                        604800     
-                                        86400   
-                                        2419200    
-                                        604800 )      
-;
-@       IN      NS     dns.com.
-0 IN  PTR  pod.com.
-2    IN  PTR tele.pod.com.
-
-######################################################
-#                /etc/bind/zones/test.com
-######################################################
-;
-; BIND data file for local loopback interface
-;
-$TTL    604800
-@       IN      SOA     dns.com. admin. ( 
-                                        2    
-                                        604800     
-                                        86400   
-                                        2419200    
-                                        604800 )      
-;
-@       IN      NS      dns.com.
-test.com. IN  A  192.168.2.120
-test.test.com. IN  A  192.168.2.121
-
-######################################################
-#             /etc/bind/zones/test.com.rev
-######################################################
-;
-; BIND reverse data file for local loopback interface
-;
-$TTL    604800
-@       IN      SOA     dns.com. admin. ( 
-                                        2    
-                                        604800     
-                                        86400   
-                                        2419200    
-                                        604800 )      
-;
-@       IN      NS     dns.com.
-120 IN  PTR  test.com.
-121    IN  PTR test.test.com.
+    - ji.podhead.netbox_docker_podman 
 ```
+
+### group vars
+- rn all vars are required, but i will add the defaults in the future. Netbox-podman doesnt really require anything
+- note that where are using 2 networks because i want to make the postgres ha
+- you can add additionally overrides, but be aware of the formation and indent
+
+```yaml 
+  tasks:
+      - name: setup netbox
+      vars:
+#-----------------> REQUIRED <-----------------
+          version: "4.0-2.9.1"
+          platform: "podman" 
+          allow_default_network: "yes"
+#----------------->  OPTIONAL <----------------- NOT YET! is on todolist
+        # -------->   USER    <----------
+          user: "admin"
+          password: "admin"
+          email: "admin@email.de"
+        # -------->  NETWORK <----------
+          networks: 
+            - name: rest
+              range: 192.168.10.30/25
+              subnet: 192.168.10.0/24
+              gateway: 192.168.10.0
+        #           ------
+            - name:  postgres
+              range: 2.1.2.30/25
+              subnet: 2.1.2.0/24
+              gateway: 2.1.2.0
+        # --------> container net <----------  
+          postgres:
+            hostname: postgres
+            ip: 192.168.10.2
+            networks:
+              - postgres
+              - rest
+          netbox:
+            hostname: netbox
+            ip: 192.168.10.0
+            networks:
+              - rest
+          redis:
+            hostname: redis
+            ip: 192.168.10.3
+            networks:
+              - rest
+          redis_cache:
+            hostname: redis_cache
+            ip: 192.168.10.4
+            networks:
+              - rest
+              - postgres
+          netbox_housekeeping:
+            hostname: netbox_housekeeping
+            ip: 192.168.10.5
+            networks:
+              - rest
+          netbox_worker:
+            hostname: netbox_worker
+            ip: 192.168.10.6
+            networks:
+              - rest
+              - postgres
+        # --------> overrides <----------
+          overrides: 
+            services:
+              netbox:
+                ports: 
+                  - 8000:8080
+#----------------->  DEPLOYMENT <-----------------
+      block:
+```
+
+### install - Fire The Collection!
+- note that you dont need to init the folder (also pulls the repo) if you make changes
+- you need however to delete the container data because compose wont let you the reuse the volumes
+- be aware that this will also delete your postgress db, so you need to back it up before. 
+- ***THIS IS NOT RESTORING YOUR DB***
+  - im thinking of implementing this however
+- you dont need to pull if you have done so before and your dependencies have not changed
+
+```yaml
+#----------------->  DEPLOYMENT <-----------------
+      block:
+        - name: init_netbox_folder (not required when updating)
+          import_role:
+            name: ji_podhead.netbox_docker_podman.init_netbox_folder
+        - name: remove_container_data
+          import_role:
+            name: ji_podhead.netbox_docker_podman.remove_container_data
+        - name: networksetbox-docker_netbox-worker_1 
+          import_role:
+            name: ji_podhead.netbox_docker_podman.networks
+        - name: compose
+          import_role:
+            name: ji_podhead.netbox_docker_podman.compose
+        - name: pull
+          import_role:
+            name: ji_podhead.netbox_docker_podman.pull
+        - name: up
+          import_role:
+            name: ji_podhead.netbox_docker_podman.up
+```
+
+### create usertoken and superuser
+
+```yaml
+        # --------> optional <----------
+        - name: superuser
+          import_role:
+            name: ji_podhead.netbox_docker_podman.superuser
+       
+        - name: create api token
+          import_role:
+            name: ji_podhead.netbox_docker_podman.create_token
+          vars:
+            port: 8000
+          register: token_result
+        - name: debug
+          debug:
+            var: token_result.json.key
+```
+
+### optional: update vault
+- check out the return token_result we registered before. there are other values you may wanna make use of
+```yaml
+        - name: Update Vault secret
+          delegate_to: localhost
+          ansible.builtin.uri:
+            url: "http://127.0.0.1:8200/v1/keyvalue/data/netbox/{{token_result.json.user.display}}/{{token_result.json.id}}"
+            method: POST
+            body_format: json
+            force_basic_auth: true
+            body:
+              options:
+                cas: 0
+              data:
+                token: "{{token_result.json.key}}"
+                url: "{{token_result.json.url}}"
+                expires: "{{token_result.json.expires}}"
+            validate_certs: false
+            status_code: 200
+            return_content: yes
+            headers:
+              X-Vault-Token: "{{vault_token}}"
+
+```
+
+### optional: create an ip in netbox using our token
+
+```yaml
+    - name: Create IP address within NetBox with only required information
+      netbox.netbox.netbox_ip_address:
+        netbox_url: http://192.168.10.1
+        netbox_token: "{{token_result.json.key}}"
+        data:
+          address: 192.168.10.1
+        state: present
+```
+
+## TODO and Roadmap
+- add docker-compose support
+- back up and restare postgres

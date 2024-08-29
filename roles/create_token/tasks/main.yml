@@ -1,0 +1,13 @@
+- name: Create token
+  ansible.builtin.uri:
+    url: "http://{{ netbox.ip }}:{{ port }}/api/users/tokens/provision/"
+    method: POST
+    body_format: json
+    force_basic_auth: true
+    body:
+      username: "{{ user }}"
+      password: "{{ password }}"
+    validate_certs: false
+    status_code: 201
+    return_content: yes
+  register: token_result

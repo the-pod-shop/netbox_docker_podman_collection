@@ -1,0 +1,9 @@
+
+
+
+- name: pull 
+  ignore_errors:
+  ansible.builtin.shell: |
+          cd /tmp/netbox-docker
+          sudo /home/worker/.local/bin/podman-compose pull
+         

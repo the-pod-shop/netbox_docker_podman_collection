@@ -1,0 +1,28 @@
+
+- name: wait till integration has finished
+  containers.podman.podman_container_exec: 
+    name: netbox-docker_netbox_1
+    user: root
+    argv:
+      - /bin/sh
+      - -c
+      - |
+        process=$(ps -aux | grep manage.py | grep -v grep )
+        if [ -z "$process" ]; then
+        echo finished
+        source /opt/netbox/venv/bin/activate;
+        DJANGO_SUPERUSER_PASSWORD={{password}} && python3 /opt/netbox/netbox/manage.py createsuperuser --no-input --username {{user}} --email {{email}}; 
+        python3 /opt/netbox/netbox/manage.py shell <<EOF
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        user = User.objects.get(username="{{user}}")
+        user.set_password("{{password}}")
+        user.save()
+        EOF
+        
+        fi
+        echo $process 
+  register: result
+  until: result.stdout_lines[0] == "finished"
+  retries: 30
+  delay: 2

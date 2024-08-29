@@ -1,0 +1,12 @@
+
+- name: Create networks
+  loop: "{{networks}}"
+  loop_control:
+    loop_var: network
+
+  containers.podman.podman_network:
+    name: "netbox-docker_{{network.name}}"
+    ip_range: "{{network.range}}"
+    subnet: "{{network.subnet}}"
+    gateway: "{{network.gateway}}"
+
