@@ -3,12 +3,26 @@
 | [vars](https://github.com/the-pod-shop/netbox_docker_podman_collection/tree/main?tab=readme-ov-file#vars) | [usage](https://github.com/the-pod-shop/netbox_docker_podman_collection/tree/main?tab=readme-ov-file#usage) | [complete example](https://github.com/the-pod-shop/netbox_docker_podman_collection/tree/main?tab=readme-ov-file#complete-examples) | [all variables](https://github.com/the-pod-shop/netbox_docker_podman_collection/tree/main?tab=readme-ov-file#all-variables) | [troubleshoot](https://github.com/the-pod-shop/netbox_docker_podman_collection/tree/main?tab=readme-ov-file#troubleshoot) | 
 
 ---
-Netbox Docker Podman automatically installs Netbox-Docker for you, creates a superuser and Token for direct usage via ansible.
+
+<div align="center">
+  <table>
+  <tr>
+    <th>Ansible Galaxy Collection</th>
+    <td><a href="https://galaxy.ansible.com/ui/repo/published/ji_podhead/netbox_docker_podman/">
+      ji_podhead.netbox_docker_podman
+  </a></td>
+  </tr>
+  <tr>
+    <th>Install</th>
+    <td><code>ansible-galaxy collection install ji_podhead.netbox_docker_podman</code></td>
+  </tr>
+</table>
+</div>
 
 ---
 
 ### features
-
+<b>Netbox Docker Podman automatically installs Netbox-Docker for you, creates a superuser and Token for direct usage via ansible.</b>
 - direct ansible usage! no manual exec needed!
 - automatic superuser creation
 - automatic usertoken creation
@@ -17,18 +31,6 @@ Netbox Docker Podman automatically installs Netbox-Docker for you, creates a sup
 - waits until database migration has finished before config
 
 > uses [Netbox-Docker](https://github.com/netbox-community/netbox-docker), so pls head over there and give them a star!
-
----
-
-
-<div align="center">
-  
-
-| ***Ansible Galaxy Collection*** | [ji_podhead.netbox_docker_podman](https://galaxy.ansible.com/ui/repo/published/ji_podhead/netbox_docker_podman/) |
-|---|---|
-| ***Install*** | `ansible-galaxy collection install ji_podhead.netbox_docker_podman` |
-
-</div>
 
 ---
 
@@ -355,13 +357,13 @@ which podman/docker-compose
 <table>
   <tr>
     <th>
-    <tr colspan ="14">
-    <td colspan="1"><b>Containers</b></td>
-    <td colspan="3"><b>Container Values</b></td>
-    <td colspan="3"><b>Networks</b></td>
-    <td colspan="3"><b>Required</b></td>
-    <td colspan="3"><b>credentials</b></td>
-    <td colspan="1"><b>override</b></td>
+    <tr>
+    <td><b>Containers</b></td>
+    <td> < </td> <td><b>Container Values</b></td>  <td> > </td>
+    <td> < </td> <td><b> Networks </b></td>        <td> > </td>
+    <td> < </td> <td><b> Required </b></td>        <td> > </td>
+    <td> < </td> <td><b> credentials </b></td>     <td> > </td>
+    <td><b>override</b></td>
     </tr>
     <tr>
     <td><b>name</b></td>
@@ -415,7 +417,7 @@ which podman/docker-compose
       <td><b>password</b></td>
       <td>userpassword</td>
       <td>string</td>
-      <td></td>
+      <td>x</td>
     </tr>
     <tr>
       <td>redis_cache</td>
@@ -431,32 +433,56 @@ which podman/docker-compose
       <td><b>email</b></td>
       <td>useremail</td>
       <td>string</td>
-      <td></td>
+      <td>x</td>
     </tr>
     <tr>
       <td>netbox_housekeeping</td>
-      <td colspan="3"></td>
+       <td>x</td>
+      <td>x</td>
+      <td>x</td>
       <td><b>iprange</b></td>
       <td>the networks ip range</td>
       <td>string</td>
       <td><b>version</b></td>
       <td>postgres version</td>
       <td>string</td>
-      <td colspan="4"></td>
+      <td>x</td>
+      <td>x</td>
+      <td>x</td>
+      <td>x</td>
     </tr>
     <tr>
       <td>netbox_worker</td>
-      <td colspan="6"></td>
+      <td>x</td>
+      <td>x</td>
+      <td>x</td>
+      <td>x</td>
+      <td>x</td>
+      <td>x</td>
       <td><b>allow_default_network</b></td>
       <td>automatically add default network</td>
       <td>bool</td>
-      <td colspan="5"></td>
+      <td>x</td>
+      <td>x</td>
+      <td>x</td>
+      <td>x</td>
     </tr>
     <tr>
       <td>postgres</td>
-      <td colspan="12"></td>
-      <td colspan="12"></td>
-    </tr>
+      <td>x</td>
+      <td>x</td>
+      <td>x</td>
+      <td>x</td>
+      <td>x</td>
+      <td>x</td>
+      <td>x</td>
+      <td>x</td>
+      <td>x</td>
+      <td>x</td>
+      <td>x</td>
+      <td>x</td>
+      <td>x</td>
+      </tr>
   </td>
   </tr>
 </table>
@@ -501,10 +527,14 @@ someone from the oh so beloved homelab discord channel came up with netbox and i
 - huge thanks goes out to [homelab discord](https://discord.gg/homelab) for helping me out  ♥
 - huge thanks goes out to [@bvierra](https://github.com/bvierra) for giving me some nice hints and reviewing my codebase  ♥
 
+---
 
 ## todo and roadmap
 - back up and restore postgres
 - improve error handling
 
+---
+
+| [vars](https://github.com/the-pod-shop/netbox_docker_podman_collection/tree/main?tab=readme-ov-file#vars) | [usage](https://github.com/the-pod-shop/netbox_docker_podman_collection/tree/main?tab=readme-ov-file#usage) | [complete example](https://github.com/the-pod-shop/netbox_docker_podman_collection/tree/main?tab=readme-ov-file#complete-examples) | [all variables](https://github.com/the-pod-shop/netbox_docker_podman_collection/tree/main?tab=readme-ov-file#all-variables) | [troubleshoot](https://github.com/the-pod-shop/netbox_docker_podman_collection/tree/main?tab=readme-ov-file#troubleshoot) | 
 
 
