@@ -10,10 +10,10 @@
             - postgres
             - redis
             - redis-cache
-          {% if netbox.ip %}ip: {{ netbox.ip }}{% endif %}
+          {% if netbox and netbox.ip is defined %}ip: {{ netbox.ip }}{% endif %}
 
-          {% if netbox.hostname %}hostname: {{ netbox.hostname }}{% endif %}          
-          {% if netbox.networks %}
+          {% if netbox and netbox.hostname is defined %}hostname: {{ netbox.hostname }}{% endif %}          
+          {% if netbox and netbox.networks %}
       networks:
           {% for network in netbox.networks %}
               - {{network}}
@@ -34,10 +34,10 @@
             - netbox-scripts-files:/opt/netbox/netbox/scripts:rw
         netbox-worker:
           <<: *netbox
-          {% if netbox_worker.ip %}ip: {{ netbox_worker.ip }}{% endif %}
+          {% if netbox_worker and netbox_worker.ip is defined %}ip: {{ netbox_worker.ip }}{% endif %}
 
-          {% if netbox_worker.hostname %}hostname: {{ netbox_worker.hostname }}{% endif %}          
-          {% if netbox_worker.networks %}
+          {% if netbox_worker and netbox_worker.hostname is defined %}hostname: {{ netbox_worker.hostname }}{% endif %}          
+          {% if netbox_worker and netbox_worker.networks %}
       networks:
           {% for network in netbox_worker.networks %}
               - {{network}}
@@ -58,9 +58,9 @@
             test: "ps -aux | grep -v grep | grep -q rqworker || exit 1"
         netbox-housekeeping:
           <<: *netbox
-          {% if netbox_housekeeping.ip %}ip: {{ netbox_housekeeping.ip }}{% endif %}
+          {% if netbox_housekeeping.ip is defined %}ip: {{ netbox_housekeeping.ip }}{% endif %}
 
-          {% if netbox_housekeeping.hostname %}hostname: {{ netbox_housekeeping.hostname }}{% endif %}          
+          {% if netbox_housekeeping.hostname is defined %}hostname: {{ netbox_housekeeping.hostname }}{% endif %}          
           {% if netbox_housekeeping.networks %}
       networks:
           {% for network in netbox_housekeeping.networks %}
@@ -80,9 +80,9 @@
             test: "ps -aux | grep -v grep | grep -q housekeeping || exit 1"
         
         postgres:
-          {% if postgres.ip %}ip: {{ postgres.ip }}{% endif %}
+          {% if postgres.ip is defined %}ip: {{ postgres.ip }}{% endif %}
 
-          {% if postgres.hostname %}hostname: {{ postgres.hostname }}{% endif %}          
+          {% if postgres.hostname is defined %}hostname: {{ postgres.hostname }}{% endif %}          
           {% if postgres.networks %}
       networks:
           {% for network in postgres.networks %}
@@ -97,9 +97,9 @@
         
         redis:
           image: docker.io/redis:7-alpine
-          {% if redis.ip %}ip: {{ redis.ip }}{% endif %}
+          {% if redis.ip is defined %}ip: {{ redis.ip }}{% endif %}
 
-          {% if redis.hostname %}hostname: {{ redis.hostname }}{% endif %}          
+          {% if redis.hostname is defined %}hostname: {{ redis.hostname }}{% endif %}          
           {% if redis.networks %}
       networks:
           {% for network in redis.networks %}
@@ -117,9 +117,9 @@
         
         redis-cache:
           image: docker.io/redis:7-alpine
-          {% if redis_cache.ip %}ip: {{ redis_cache.ip }}{% endif %}
+          {% if redis_cache.ip is defined %}ip: {{ redis_cache.ip }}{% endif %}
 
-          {% if redis_cache.hostname %}hostname: {{ redis_cache.hostname }}{% endif %}          
+          {% if redis_cache.hostname is defined %}hostname: {{ redis_cache.hostname }}{% endif %}          
           {% if redis_cache.networks %}
       networks:
         {% for network in redis_cache.networks %}
@@ -157,19 +157,40 @@
       version: {{ version }}
       {{ overrides | to_yaml | indent(8) }}
       networks:
+
 - name: override networks
   loop: "{{networks}}"
   loop_control:
     loop_var: network
+  # the default network is default value, so users dont have to specify it
+  # however we have the use_default network option, which means, ill add the network for the user
+  # in order avoid redundant networks, we need timeout:
+  #     - check if default network is defined by user and use_default_network is true
+  #     - chec if no network is defined by the user and use_default_network is true
+  # if the user has defined his own default, we use this over my default network
   ansible.builtin.shell: | 
     cat<<'EOF'>>/tmp/netbox-docker/docker-compose.override.yml
-        {{ network.name }}:        
+        {% if use_default_network and networks | length > 1 and 'default' not in networks %}
+     
+        default:
+          driver: bridge
+          
+        {% endif %}
+
+        {{ network.name }}:
+     
+        {% if network.subnet is defined and network.range is defined and network.gateway is defined %}
+        
           ipam:
               driver: bridge
               config:
                   subnet: {{ network.subnet }}
                   ip_range: {{ network.range }}
                   gateway: {{ network.gateway }}
-    EOF
-
+        
+          {% else %}
+     
+           driver: bridge
+     
+          {% endif %}
 

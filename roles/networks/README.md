@@ -1,12 +1,12 @@
-Role Name
+networks
 =========
 
-A brief description of the role goes here.
+a role that setup your networks, since the compose and netbox requires the networks to exist before compose up command.
 
 Requirements
 ------------
 
-Any pre-requisites that may not be covered by Ansible itself or the role should be mentioned here. For instance, if the role uses the EC2 module, it may be a good idea to mention in this section that the boto package is required.
+docker or podman and compose
 
 Role Variables
 --------------
