@@ -1,31 +1,216 @@
-Role Name
+compose
 =========
 
-A brief description of the role goes here.
+creates a docker-compose.yml and docker-compose.override.yml in the /tmp/netbox-docker folder on the host
 
 Requirements
 ------------
+- initialized netbox-folder
+- created the networks (if not only using default)
 
-Any pre-requisites that may not be covered by Ansible itself or the role should be mentioned here. For instance, if the role uses the EC2 module, it may be a good idea to mention in this section that the boto package is required.
 
 Role Variables
 --------------
+defaults:
+```
+---
+use_default_network: true
+networks:
+  - name: default
 
-A description of the settable variables for this role should go here, including any variables that are in defaults/main.yml, vars/main.yml, and any variables that can/should be set via parameters to the role. Any variables that are read from other roles and/or the global scope (ie. hostvars, group vars, etc.) should be mentioned here as well.
+# --------> container net <----------  
+postgres:
+  networks:
+    - default
+netbox:
+  networks:
+    - default
+redis:
+  networks:
+    - default
+redis_cache:
+  networks:
+    - default
+netbox_housekeeping:
+  networks:
+    - default
+netbox_worker:
+  networks:
+    - default
+# --------> overrides <----------
+overrides: 
+  services:
+    netbox:
+      ports: 
+        - 8000:8080
+```
 
-Dependencies
-------------
-
-A list of other roles hosted on Galaxy should go here, plus any details in regards to parameters that may need to be set for other roles, or variables that are used from other roles.
-
-Example Playbook
+Examples
 ----------------
 
-Including an example of how to use your role (for instance, with variables passed in as parameters) is always nice for users too:
+### overrides, static ips, default- and 2 additional networks
+> both postgres and netbox have their own network and ip <br>
+> this way we can make postgres ha and fetch the netbox ip <br>
+> all the other containers use the default network and get an ip from podman, or docker <br>
+> we also override the netbox port
 
-    - hosts: servers
-      roles:
-         - { role: username.rolename, x: 42 }
+```yaml
+
+- hosts: <your hosts>
+  gather_facts: no
+  become: true
+  become_method: sudo
+  become_user: root
+  collections:
+    - ji.podhead.netbox_docker_podman 
+    - name: setup netbox
+      vars:
+#         --------> Required <----------
+          version: "4.0-2.9.1"
+          index: 1
+          platform: "podman" 
+          compose_path: /home/worker/.local/bin/podman-compose
+          use_default_network: "yes" 
+#         --------> Credentials <----------
+          user: "admin"
+          password: "admin"
+          email: "admin@email.de"
+#         ---------->  Network <-----------
+          networks: 
+            - name: netbox
+              range: 192.168.10.30/25
+              subnet: 192.168.10.0/24
+              gateway: 192.168.10.0
+#                  ------
+            - name:  postgres
+              range: 2.1.2.30/25
+              subnet: 2.1.2.0/24
+              gateway: 2.1.2.0
+#         -------> Container Values <--------  
+          postgres:
+            hostname: postgres
+            ip: 2.1.2.0
+            networks:
+              - postgres
+              - default
+          netbox:
+            hostname: netbox
+            ip: 192.168.10.0
+            networks:
+              - netbox
+              - default
+#         --------> Overrides <----------
+          overrides: 
+            services:
+              netbox:
+                ports: 
+                  - 8000:8880
+#----------------->  DEPLOYMENT <-----------------
+      block:
+        - name: init_netbox_folder (not required when updating)
+          import_role:
+            name: ji_podhead.netbox_docker_podman.init_netbox_folder
+        - name: networksetbox-docker_netbox-worker_1 
+          import_role:
+            name: ji_podhead.netbox_docker_podman.networks
+        - name: compose
+          import_role:
+            name: ji_podhead.netbox_docker_podman.compose
+        - name: up
+          import_role:
+            name: ji_podhead.netbox_docker_podman.up
+#         --------> optional <----------
+        - name: superuser
+          import_role:
+            name: ji_podhead.netbox_docker_podman.superuser
+```
+---
+
+###  no defaults: overwriting all vars
+```yaml
+- hosts: <your host>
+  gather_facts: no
+  become: true
+  become_method: sudo
+  become_user: root
+  collections:
+    - ji.podhead.netbox_docker_podman 
+    - name: setup netbox
+
+  - name: setup netbox
+      vars:
+          version: "4.0-2.9.1"
+          index: 1
+          platform: "podman" 
+          compose_path: /home/worker/.local/bin/podman-compose
+          allow_default_network: false 
+          user: "ji_podhead"
+          password: "ji_superpass"
+          email: "ji@podhead.de"
+          networks: 
+            - name: rest
+              range: 192.168.10.30/25
+              subnet: 192.168.10.0/24
+              gateway: 192.168.10.0
+            - name:  postgres
+              range: 2.1.2.30/25
+              subnet: 2.1.2.0/24
+              gateway: 2.1.2.0
+          postgres:
+            hostname: postgres
+            ip: 2.1.2.1
+            networks:
+              - postgres
+              - rest
+          netbox:
+            hostname: netbox
+            ip: 192.168.10.0
+            networks:
+              - rest
+          redis:
+            hostname: redis
+            ip: 192.168.10.3
+            networks:
+              - rest
+          redis_cache:
+            hostname: redis_cache
+            ip: 192.168.10.4
+            networks:
+              - rest
+              - postgres
+          netbox_housekeeping:
+            hostname: netbox_housekeeping
+            ip: 192.168.10.5
+            networks:
+              - rest
+          netbox_worker:
+            hostname: netbox_worker
+            ip: 192.168.10.6
+            networks:
+              - rest
+              - postgres
+          overrides: 
+            services:
+              netbox:
+                ports: 
+                  - 8000:8880
+      block:
+        - name: init_netbox_folder (not required when updating)
+          import_role:
+            name: ji_podhead.netbox_docker_podman.init_netbox_folder
+        - name: networksetbox-docker_netbox-worker_1 
+          import_role:
+            name: ji_podhead.netbox_docker_podman.networks
+        - name: compose
+          import_role:
+            name: ji_podhead.netbox_docker_podman.compose
+        - name: up
+          import_role:
+            name: ji_podhead.netbox_docker_podman.up
+        - name: superuser
+          import_role:
+            name: ji_podhead.netbox_docker_podman.superuser
+```
 
 License
 -------
@@ -35,4 +220,4 @@ BSD
 Author Information
 ------------------
 
-An optional section for the role authors to include contact information, or a website (HTML is not allowed).
+ji_podhead

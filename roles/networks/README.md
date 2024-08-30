@@ -3,29 +3,41 @@ networks
 
 a role that setup your networks, since the compose and netbox requires the networks to exist before compose up command.
 
-Requirements
-------------
-
-docker or podman and compose
 
 Role Variables
 --------------
+a list of networks with the following parameters:
+- name
+- range
+- subnet
+- gateway
 
-A description of the settable variables for this role should go here, including any variables that are in defaults/main.yml, vars/main.yml, and any variables that can/should be set via parameters to the role. Any variables that are read from other roles and/or the global scope (ie. hostvars, group vars, etc.) should be mentioned here as well.
+example
+--------------
 
-Dependencies
-------------
-
-A list of other roles hosted on Galaxy should go here, plus any details in regards to parameters that may need to be set for other roles, or variables that are used from other roles.
-
-Example Playbook
-----------------
-
-Including an example of how to use your role (for instance, with variables passed in as parameters) is always nice for users too:
-
-    - hosts: servers
-      roles:
-         - { role: username.rolename, x: 42 }
+```yaml
+- hosts: <your hosts>
+  gather_facts: no
+  become: true
+  become_method: sudo
+  become_user: root
+  collections:
+    - ji.podhead.netbox_docker_podman 
+    - name: setup netbox
+      vars:
+          networks: 
+            - name: netbox
+              range: 192.168.10.30/25
+              subnet: 192.168.10.0/24
+              gateway: 192.168.10.0
+            - name:  postgres
+              range: 2.1.2.30/25
+              subnet: 2.1.2.0/24
+              gateway: 2.1.2.0
+  - name: networks
+    import_role:
+      name: ji_podhead.netbox_docker_podman.networks
+```
 
 License
 -------
@@ -35,4 +47,4 @@ BSD
 Author Information
 ------------------
 
-An optional section for the role authors to include contact information, or a website (HTML is not allowed).
+ji_podhead
